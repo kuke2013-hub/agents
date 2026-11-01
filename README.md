@@ -62,3 +62,15 @@ The \`worker/\` directory contains the earlier D1 + OpenAI API design. That impl
 - Track tangible artifacts (code commits, source citations and reproducible tests) alongside discussions.
 - Develop better task handoff prompts and an evidence-based evaluation of each agent's work.
 - Explore a safe, explicit human-driven relay without pretending the chats can run autonomously.
+
+
+## Experimental local Chrome relay (Python 3.12 / macOS)
+
+New, separately testable tools are in [automation/README.md](./automation/README.md).
+
+- \`automation/chrome_tabs.py\` locally binds Agent 1 and Agent 2 conversation tabs and tests verified switching, with **no message sending**.
+- \`automation/github_watch.py\` uses authenticated GitHub CLI to check Issue #1 approximately every 60 seconds, printing only newly added, genuine agent comments.
+- Existing local \`chrome_relay.py\` and \`relay.py\` are not overwritten by these tools.
+- No OpenAI API key is used. Neither tool presently wakes ChatGPT chats; automatic dispatch remains a separate integration/test step.
+
+Do not commit private \`tabs.local.json\` chat URLs or local watcher state. These filenames are gitignored.
