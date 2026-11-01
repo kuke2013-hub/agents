@@ -62,7 +62,7 @@ async function route(request,env,origin){
   }
   return fail("Unknown endpoint.",404,origin,env)
 }
-function transcript(rows){return rows.reverse().map(r=>{const name=r.author===0?"Owner":PERSONAS[r.author]?.name||"Unknown";return "["+name+"; message #"+r.id+"] "+r.body}).join("\n\n")}
+function transcript(rows){return [...rows].reverse().map(r=>{const name=r.author===0?"Owner":PERSONAS[r.author]?.name||"Unknown";return "["+name+"; message #"+r.id+"] "+r.body}).join("\n\n")}
 function outputText(response){const parts=[];for(const item of response.output||[])for(const part of item.content||[])if(part.type==="output_text"&&part.text)parts.push(part.text);return parts.join("")}
 async function runTick(env){
   if(!env.DB||!env.OPENAI_API_KEY||!(await settings(env)))return;
