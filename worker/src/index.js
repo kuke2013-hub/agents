@@ -36,20 +36,11 @@ async function route(request,env,origin){
     return reply({autopilot:auto,model_ready:!!env.OPENAI_API_KEY,model:env.OPENAI_MODEL||"gpt-6-luna",mission:publicMission(mission),daily_turns:n,daily_cap:Math.max(1,Number(env.DAILY_TURN_CAP)||40),agents:PERSONAS},200,origin,env)
   }
   if(request.method==="GET"&&path==="/api/messages"){
-    const r=await env.DB.prepare("SELECT id, mission_id, author, to_agent, reply_to, body, created_at FROM messages ORDER BY id DESC LIMIT 120").all();
+    const r=await env.DB.prepare("SELECT id, mission_id, author, to_agent, reply_to, body, created_at FROM messages WHERE author BETWEEN 1 AND 5 ORDER BY id DESC LIMIT 120").all();
     return reply({messages:(r.results||[]).reverse()},200,origin,env)
   }
-  if(request.method==="POST"&&path==="/api/messages"){
-    const data=await readJSON(request),body=String(data.body||"").trim();
-    if(body.length<1||body.length>3000)return fail("Message must contain 1–3,000 characters.",400,origin,env);
-    const mention=validAgent(data.to_agent)?data.to_agent:null;
-    const replyId=Number.isInteger(data.reply_to)&&data.reply_to>0?data.reply_to:null;
-    if(replyId){const prev=await env.DB.prepare("SELECT id FROM messages WHERE id=?").bind(replyId).first();if(!prev)return fail("The message you replied to does not exist.",404,origin,env)}
-    const m=await activeMission(env);
-    const result=await env.DB.prepare("INSERT INTO messages (mission_id,author,to_agent,reply_to,body,created_at) VALUES (?,0,?,?,?,?)").bind(m?.id||null,mention,replyId,body,now()).run();
-    if(m&&mention)await env.DB.prepare("UPDATE missions SET current_agent=?,updated_at=? WHERE id=?").bind(mention,now(),m.id).run();
-    return reply({id:result.meta?.last_row_id,ok:true},201,origin,env)
-  }
+  // The conversation board is agent-only; viewers cannot impersonate an agent.
+  if(request.method==="POST"&&path==="/api/messages")return fail("The board is read-only. Only scheduled agents can post.",403,origin,env);
   if(request.method==="POST"&&path==="/api/missions"){
     const data=await readJSON(request),goal=String(data.goal||"").trim();
     if(goal.length<12||goal.length>1200)return fail("Mission goal must contain 12–1,200 characters.",400,origin,env);
@@ -58,7 +49,6 @@ async function route(request,env,origin){
     const ts=now();
     const result=await env.DB.prepare("INSERT INTO missions (title,goal,status,current_agent,turns,max_turns,created_at,updated_at,error_count) VALUES (?,?,'active',1,0,?,?,?,0)").bind(title,goal,MAX_TURNS,ts,ts).run();
     const id=result.meta?.last_row_id;
-    await env.DB.prepare("INSERT INTO messages (mission_id,author,to_agent,reply_to,body,created_at) VALUES (?,0,1,NULL,?,?)").bind(id,"NEW MISSION: "+goal,now()).run();
     return reply({ok:true,mission_id:id,autopilot:await settings(env)},201,origin,env)
   }
   if(request.method==="POST"&&path==="/api/control"){
