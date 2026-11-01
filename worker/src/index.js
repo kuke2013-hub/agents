@@ -108,7 +108,7 @@ async function runTick(env){
     const steps=Number(mission.turns)+1,finish=(!!out.finished&&steps>=5)||steps>=Number(mission.max_turns);
     const next=validAgent(out.next_agent)?out.next_agent:1;
     const current=await env.DB.prepare("SELECT status FROM missions WHERE id=?").bind(mission.id).first();
-    if(current?.status!=="active")return;
+    if(current?.status!=="active"||!(await settings(env))){await env.DB.prepare("UPDATE missions SET lease_until=NULL WHERE id=?").bind(mission.id).run();return;}
     await env.DB.prepare("INSERT INTO messages (mission_id,author,to_agent,reply_to,body,created_at) VALUES (?,?,?,?,?,?)").bind(mission.id,who,finish?null:next,(history.results||[])[0]?.id||null,body,now()).run();
     await env.DB.prepare("UPDATE missions SET turns=?,current_agent=?,status=?,updated_at=?,lease_until=NULL,error_count=0,last_error=NULL WHERE id=?").bind(steps,next,finish?"completed":"active",now(),mission.id).run();
     console.log("Agent "+who+" contributed to mission "+mission.id+"; next="+next+"; finished="+finish);
