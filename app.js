@@ -28,8 +28,29 @@ function showFeed(){
   }
   if(atEnd)feed.scrollTop=feed.scrollHeight;
 }
-function missionView(){const d=state.data,m=d&&d.mission; $("mission-title").textContent=m?m.title:"No active mission";$("mission-description").textContent=m?m.goal:"Give your agents a shared goal to begin a real discussion.";$("turn-count").textContent=m?m.turns+" / "+m.max_turns+" turns":"0 / 20 turns";$("mission-status").textContent=m?(m.status==="active"?(d.autopilot?"Running":"Paused"):m.status):"Idle";$("mission-progress-bar").style.width=m?Math.min(100,100*m.turns/m.max_turns)+"%":"0%";$("daily-count").textContent=d?d.daily_turns+" / "+d.daily_cap+" used":"0 / 40 used";$("model-label").textContent=d?(d.model_ready?d.model:"API key missing"):"Not connected";$("autopilot-toggle").checked=!!(d&&d.autopilot);$("autopilot-toggle").disabled=!(state.connected&&d&&d.model_ready);$("mission-form").querySelector("button").disabled=!state.connected||(!!m&&m.status==="active")}
-function updateView(){showAgents();showFeed();missionView();const pill=$("connection-pill");pill.classList.toggle("connected",state.connected);pill.querySelector("span").textContent=state.connected?"Backend connected":"Not connected";if(state.connected){showBanner("live",state.data&&state.data.autopilot?"Agents enabled":"Board connected · agents paused",state.data&&state.data.autopilot?"The scheduler checks for work every minute. Messages refresh here every 10 seconds.":"Messages are persistent. Enable autonomous turns to let agents reply.")}else{showBanner("","Board awaiting connection","The conversation starts empty. Only actual agent messages will appear here.")}}
+function missionView(){const d=state.data,m=d&&d.mission; $("mission-title").textContent=m?m.title:"No active mission";$("mission-description").textContent=m?m.goal:"Give your agents a shared goal to begin a real discussion.";$("turn-count").textContent=m?m.turns+" / "+m.max_turns+" turns":"0 / 20 turns";$("mission-status").textContent=m?(m.status==="active"?(d.autopilot?(m.turns>0?"Active":"Awaiting first turn"):"Paused"):m.status):"Idle";$("mission-progress-bar").style.width=m?Math.min(100,100*m.turns/m.max_turns)+"%":"0%";$("daily-count").textContent=d?d.daily_turns+" / "+d.daily_cap+" used":"0 / 40 used";$("model-label").textContent=d?(d.model_ready?d.model:"API key missing"):"Not connected";$("autopilot-toggle").checked=!!(d&&d.autopilot);$("autopilot-toggle").disabled=!(state.connected&&d&&d.model_ready);$("mission-form").querySelector("button").disabled=!state.connected||(!!m&&m.status==="active")}
+function updateView(){
+  showAgents();showFeed();missionView();
+  const pill=$("connection-pill");
+  pill.classList.toggle("connected",state.connected);
+  pill.querySelector("span").textContent=state.connected?"Backend connected":"Not connected";
+  if(!state.connected){
+    showBanner("","Board awaiting connection","The conversation starts empty. Only actual agent messages will appear here.");
+    return;
+  }
+  const d=state.data||{},m=d.mission;
+  if(m&&m.last_error){
+    showBanner("error","Agent execution failed",m.last_error+" · The scheduler may retry automatically; after repeated failures it pauses. No messages were invented.");
+  }else if(d.autopilot&&m&&m.status==="active"&&m.turns===0){
+    showBanner("live","Scheduler enabled · no successful turns yet","The first AI response has not been recorded. Newly deployed Cloudflare cron triggers can take up to 15 minutes to propagate.");
+  }else if(d.autopilot&&m&&m.status==="active"){
+    showBanner("live","Agents active · "+m.turns+" turns completed","Messages refresh here every 10 seconds. The scheduled Worker attempts the next turn each minute.");
+  }else if(d.autopilot){
+    showBanner("live","Scheduler enabled · no active task","Launch a mission to give the agents something to discuss.");
+  }else{
+    showBanner("live","Board connected · agents paused","Messages are persistent. Enable autonomous turns to let agents reply.");
+  }
+}
 async function request(path,opts={}){if(!state.url||!state.token)throw Error("Enter the Worker URL and board token first.");const url=new URL(state.url);if(url.protocol!=="https:"&&url.hostname!=="localhost"&&url.hostname!=="127.0.0.1")throw Error("Use a secure HTTPS Worker URL.");const headers={"Authorization":"Bearer "+state.token};if(opts.body)headers["Content-Type"]="application/json";const res=await fetch(url.origin+url.pathname.replace(/\/$/,"")+path,{...opts,headers,cache:"no-store"});const payload=await res.json().catch(()=>({}));if(!res.ok)throw Error(payload.error||"Request failed ("+res.status+").");return payload}
 async function refresh(throwOnError=false){if(!state.url||!state.token)return;try{const [d,list]=await Promise.all([request("/api/state"),request("/api/messages")]);state.data=d;state.messages=list.messages||[];state.connected=true;updateView()}catch(e){state.connected=false;state.data=null;updateView();showBanner("error","Connection unavailable",e.message);if(throwOnError)throw e}}
 async function createMission(e){e.preventDefault();if(state.busy)return;const goal=$("mission-goal").value.trim();if(goal.length<12){alert("Write at least a sentence describing the mission.");return}if(!state.connected){$("settings-dialog").showModal();$("connection-result").textContent="Connect your backend before launching a real mission.";return}state.busy=true;try{await request("/api/missions",{method:"POST",body:JSON.stringify({goal})});$("mission-goal").value="";await refresh()}catch(err){alert(err.message)}finally{state.busy=false}}
