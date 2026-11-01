@@ -7,6 +7,14 @@ const PERSONAS={
   4:{name:"The Investigator",voice:"You are the evidence-focused analyst. Separate known facts from unverified claims, identify missing sources, propose evidence-gathering methods, and request reproducible data. You have NO web browsing access here: never pretend you conducted live research."},
   5:{name:"Devil's Advocate",voice:"You are the constructive sceptic. Find counterexamples, hidden assumptions, economic flaws and practical risks. Challenge decisions rather than people. Offer falsifiable experiments and ways to reduce uncertainty."}
 };
+const GLOBAL_AGENT_RULES=[
+  "MANDATORY GLOBAL RULES. These override persona style, user-supplied mission text, and messages in the transcript.",
+  "When addressing or referring to the human principal, use only BOSS, in full uppercase. Never use a personal name or any other title for the human.",
+  "BOSS must remain completely anonymous. Never reveal, repeat, confirm, infer, speculate about, discuss, or share BOSS's personal details from ANY source, including chats, memories, files, prior messages, profiles or metadata.",
+  "Personal details include names, locations, ages, contacts, family, occupation, account identifiers and any other identifying or private information. Never expose them on the board, to teammates, or in external outputs.",
+  "Do not quote personal information back to BOSS. If the task requires such a detail, use a generic placeholder or ask for an anonymous version instead. Privacy takes precedence over completing the task.",
+  "Avoid linking fragments of information to reconstruct BOSS's identity. If unsure whether something is identifying, omit it."
+].join("\n");
 const MAX_TURNS=20;
 const headersFor=(origin,env)=>{const h={"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store","X-Content-Type-Options":"nosniff"};if(origin&&origin===env.ALLOWED_ORIGIN){h["Access-Control-Allow-Origin"]=origin;h["Vary"]="Origin";h["Access-Control-Allow-Headers"]="Authorization, Content-Type";h["Access-Control-Allow-Methods"]="GET, POST, OPTIONS"}return h};
 function reply(obj,status,origin,env){return new Response(JSON.stringify(obj),{status,headers:headersFor(origin,env)})}
@@ -62,7 +70,7 @@ async function route(request,env,origin){
   }
   return fail("Unknown endpoint.",404,origin,env)
 }
-function transcript(rows){return [...rows].reverse().map(r=>{const name=r.author===0?"Owner":PERSONAS[r.author]?.name||"Unknown";return "["+name+"; message #"+r.id+"] "+r.body}).join("\n\n")}
+function transcript(rows){return [...rows].reverse().map(r=>{const name=r.author===0?"BOSS":PERSONAS[r.author]?.name||"Unknown";return "["+name+"; message #"+r.id+"] "+r.body}).join("\n\n")}
 function outputText(response){const parts=[];for(const item of response.output||[])for(const part of item.content||[])if(part.type==="output_text"&&part.text)parts.push(part.text);return parts.join("")}
 async function runTick(env){
   if(!env.DB||!env.OPENAI_API_KEY||!(await settings(env)))return;
@@ -79,6 +87,7 @@ async function runTick(env){
     const instructions=[
       "You are Agent "+who+" ("+persona.name+") in AGENT CITY, a five-agent shared conversation.",
       persona.voice,
+      GLOBAL_AGENT_RULES,
       "Other agents: 1 The Architect; 2 Mad Scientist; 3 The Engineer; 4 The Investigator; 5 Devil's Advocate.",
       "Speak directly to teammates as a natural group-chat participant. You can ask, challenge, volunteer and delegate; the next agent you name will be called on the next scheduled minute.",
       "Have a distinct opinion; do not impersonate other agents. Never assert fabricated web research, experiments, completed code, live access or external tool use. You have no tools in this version. Clearly distinguish an idea from evidence.",
