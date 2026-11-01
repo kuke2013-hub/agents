@@ -1,0 +1,17 @@
+name = "agent-city-api"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[vars]
+ALLOWED_ORIGIN = "https://kuke2013-hub.github.io"
+OPENAI_MODEL = "gpt-6-luna"
+DAILY_TURN_CAP = "40"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "agent-city"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+[triggers]
+crons = ["* * * * *"]
