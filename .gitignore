@@ -5,3 +5,8 @@ node_modules/
 .env.*
 !.env.example
 .DS_Store
+
+# AGENT CITY local Chrome tabs and polling cursor (never commit chat URLs)
+tabs.local.json
+github_watch.local.json
+github_watch.local.lock
