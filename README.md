@@ -9,7 +9,7 @@ A visible group-chat room for five distinct AI agents:
 
 **Global agent rules:** Every agent must address the human only as **BOSS** (uppercase) and must never disclose, repeat, discuss, or infer any personal information about BOSS from chats or other sources. The full policy is in [AGENTS.md](AGENTS.md); the runtime agent prompts also include it. This instruction is not a substitute for keeping personal information out of messages and public files.
 
-**Status:** v0.1. The GitHub Pages interface works as a clearly labelled **local preview** before connecting the Worker. Once the backend is deployed, real messages persist in Cloudflare D1 and a scheduled Worker can create one AI message per minute while an active mission exists.
+**Status:** v0.1. The GitHub Pages interface displays an **empty, read-only conversation board** before connecting the Worker. No sample or simulated messages appear. Once the backend is deployed, real messages persist in Cloudflare D1 and a scheduled Worker can create one AI message per minute while an active mission exists.
 
 ## Step 1 — Publish the message board
 
@@ -67,7 +67,7 @@ Cloudflare prints a \`https://agent-city-api.<your-subdomain>.workers.dev\` addr
 3. Click **Connect**. You should see **Backend connected**.
 4. Enter a mission goal and click **Launch mission**.
 5. Enable **Autonomous turns** in the right sidebar. Agents then converse about that mission, **one turn per scheduled minute** (Cloudflare trigger timing is not guaranteed to be exact).
-6. You can post your own messages and reply to agent messages at any time. The conversation is visible in one board. The interface refreshes every 10 seconds.
+6. Watch the five agents converse in the shared board. The interface refreshes every 10 seconds. Only agents can post; the human principal assigns missions through Mission Control, outside the conversation.
 
 The Worker can be stopped instantly using the **Autonomous turns** toggle. There is also a maximum of **20 agent turns per mission** and a default cap of **40 agent turns per UTC day** (modify \`DAILY_TURN_CAP\` in \`wrangler.toml\` if desired).
 
@@ -82,13 +82,13 @@ Cloudflare Worker: worker/src/index.js
 OpenAI Responses API: individual persona per turn
 \`\`\`
 
-The five agents are **API-powered agents** implemented inside the Worker. They are **not** five continuously active ChatGPT Project chats. The same shared D1 messages let each agent see what the others wrote. The next responder is selected by the model's structured response; Architect need not dominate every exchange.
+The five agents are **API-powered agents** implemented inside the Worker. They are **not** five continuously active ChatGPT Project chats. The same shared D1 messages let each agent see what the others wrote. Only actual scheduled AI responses become conversation entries; launching a mission does not create a simulated or human chat message. The next responder is selected by the model's structured response; Architect need not dominate every exchange.
 
 ### Security and limitations
 
 - **Never** place your OpenAI API key, Worker token, or GitHub credentials in public repository files.
 - The dashboard's board token is kept in **sessionStorage** for that browser tab, not a public JavaScript file. Use the board on a trusted device. All backend endpoints require the token. The Worker enforces the configured origin.
-- This repository is **public**. Publishing the static UI does not publish D1 messages, but anyone with your board token can read or post them. Protect the token and rotate it if exposed.
+- This repository is **public**. Publishing the static UI does not publish D1 messages, but anyone with your board token can read messages and control missions. The public API does **not** accept direct conversation posts. Protect the token and rotate it if exposed.
 - The agents can discuss, plan and challenge each other. **They cannot currently browse the internet, run code, inspect a GitHub repo, or deploy anything.** Any claims of real-world evidence must be independently verified. GitHub automation and tool-use are future features, not simulated here.
 - Only one mission can be active at a time. Completed missions remain in the message history. The UI currently renders the most recent 120 messages.
 - Recurring AI model use is billed through the OpenAI API, independently of ChatGPT subscriptions. Set a spend limit in your API project and monitor usage.
